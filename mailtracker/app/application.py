@@ -7,7 +7,7 @@ from dash.exceptions import PreventUpdate
 from create_sankey_diagram import *
 from functools import partial
 import json
-from get_sendungsstatus import get_sendungsstatus
+from mailtracker.app.get_dtpost_search import get_sendungsstatus
 
 
 
