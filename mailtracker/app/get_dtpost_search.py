@@ -7,7 +7,7 @@ import pandas as pd
 #         'A005BCE2370000000047',
 #         ]
 
-def get_sendungsstatus(mail_ids):
+def get_mail_status(mail_ids):
     url = "https://www.deutschepost.de/int-verfolgen/data/search"
     headers = {
         "accept": "application/json",
@@ -38,7 +38,7 @@ def get_sendungsstatus(mail_ids):
                 )
             yield response
         except Exception as e:
-            # logger.info(response)
+            # logger.error(response)
             continue
     
 def response_to_filtered_json(response):
