@@ -1,9 +1,15 @@
 import base64
 import io
-from dash import dcc, html, Input, Output, Dash, dash_table
+import dash
+from dash import dcc, html, Input, Output, State, Dash, dash_table
+import dash_bootstrap_components as dbc
+from dash.exceptions import PreventUpdate
 from create_sankey_diagram import *
 from functools import partial
 import json
+from get_sendungsstatus import get_sendungsstatus
+
+
 
 app = Dash(__name__) 
 
@@ -22,8 +28,8 @@ app.layout = html.Div(
         dcc.Upload(
             id='upload-data',
             children=html.Div([
-                'Drag and Drop or Select an ',
-                html.A('Excel-File')
+                'Drag & Drop oder wähle eine ',
+                html.A('Excel-Datei', style={'color': '#e63922'})
                 ]),
             style={
                 'height': '60px',
@@ -38,11 +44,11 @@ app.layout = html.Div(
         ),
         html.Div(className='row', children=[
             html.Div(
-                [html.Label('Select columns'),
+                [html.Label('Spalten auswählen'),
                  dcc.Dropdown(
                     id='selection-source',
                     multi=True,
-                    placeholder='Select the columns you want to visualize',
+                    placeholder='Wähle die zu visualisierenden Spalten aus.',
                     value=[]
                 ),
                  ],
@@ -53,12 +59,12 @@ app.layout = html.Div(
         html.Div(className='row', children=[
             html.Div(
                 [html.Label(
-                    f'Filter by'
+                    f'Filtern nach'
                     ),
                 dcc.Dropdown(
                     id=f'selection-target{count}',
                     multi=True,
-                    placeholder='Select the row values you want to include',
+                    placeholder='Wähle einen Wert',
                     value=[]
                 ),
                 ],
@@ -66,6 +72,43 @@ app.layout = html.Div(
                 className='two columns pretty_container'
             ) for count in range(7)
         ]),
+        html.Div(
+                [
+                html.Button(
+                    'Ansicht wechseln',
+                    id='toggle-view',
+                    style={
+                        'color': '#e63922',
+                        'margin': '10px'
+                    }
+                ),
+                    
+                html.Div(style={'flex': '1'}),
+                
+                     html.Button(
+                    '1. Sendungsstatus abrufen',
+                    id='mailtracker',
+                    style={
+                        'color': '#e63922',
+                        'margin': '10px'
+                    }
+                ),
+                    html.Button(
+                    '2. Zu Excel exportieren',
+                    id='download-button',
+                    style={
+                        'color': '#e63922',
+                        'margin': '10px'
+                    }
+                )
+                ],
+                style={
+                    'display': 'flex',
+                    'align-items': 'center',
+                    'width': '100%'
+                }
+        ),
+        dcc.Download(id='download'),
         dcc.Graph(
         id='sankey',
         style={'height': '65vh'}
@@ -82,8 +125,57 @@ app.layout = html.Div(
         dcc.Store(id='store'),
         dcc.Store(id='filename-store'),
         dcc.Store(id='selected-columns-store'),
-    ]
-)
+#    
+    
+        # dbc.Button('Open modal', id='open', n_clicks=0),
+        dbc.Modal(
+            [
+                # dbc.ModalHeader(
+                    # dbc.ModalTitle(
+                    #     'Excel-Datei heruntergeladen.',
+                    #     style={
+                    #         'font-weight': 'bold',
+                    #         'text-align': 'center'
+                    #         }
+                    #     )
+                    # ),
+                html.Br(),
+                dbc.ModalBody('Die Datei befindet sich in Downloads.'),
+                html.Br(),
+                dbc.ModalFooter(
+                    dbc.Button(
+                        'Schließen',
+                        id='close',
+                        className='ms-auto',
+                        n_clicks=0,
+                        style={
+                            # 'text-align':'right',
+                            'background-color':'#f2f2f2',
+                            # 'border':'none'
+                            }
+                        )
+                ),
+            ],
+            id='modal',
+            is_open=False,
+            style={
+                'position': 'fixed',
+                'top': '12%',
+                'left': '50%',
+                'transform': 'translate(-50%, -50%)',
+                'width': '300px',
+                'border-radius': '10px',
+                'box-shadow': '0 4px 8px rgba(0, 0, 0, 0.2)',
+                'background-color': 'white',
+                'padding':'20px',
+                'text-align':'center',
+            },
+        ),
+    
+#
+
+        ]
+    )
 
 @app.callback(
     Output('store', 'data'),
@@ -116,7 +208,7 @@ def available_options_changed_callback(data):
     [Input('selection-source', 'value')]
 )
 def selected_columns_changed_callback(value):
-    '''create diagram only if at least two columns are selected'''
+    '''creates diagram only if at least two columns are selected'''
     return value
 
 def show_target_options_changed_callback(index, style, data, selected_columns):
@@ -170,8 +262,8 @@ def parse_data(contents, filename):
     try:
         if "xlsx" in filename:
             df = pd.read_excel(io.BytesIO(decoded))
-            df['Review'] = 'unknown'
-            df['Comment'] = 'no comment'
+            # df['Review'] = 'unknown'
+            # df['Comment'] = 'no comment'
             df.name = filename
             return df
     except Exception as e:
@@ -197,6 +289,50 @@ def update_table(data, selected_columns):
     df = df[selected_columns]
     columns = [{'name': i, 'id': i} for i in df.columns]
     return df.to_dict('records'), columns
+
+@app.callback(
+    [Output('download-button', 'n_clicks'),
+     Output('modal', 'is_open')],
+    [Input('download-button', 'n_clicks'),
+     Input('close', 'n_clicks')],
+    [State('modal', 'is_open')]
+)
+def on_button_click_and_toggle_modal(n_clicks, close_clicks, is_open):
+    if n_clicks is None:
+        raise PreventUpdate
+
+    # Wenn der Download-Button geklickt wurde, öffnet sich das Modal
+    if n_clicks > 0 and not is_open:
+        get_sendungsstatus()
+        return n_clicks, True
+
+    # Wenn der Close-Button geklickt wurde, schließt sich das Modal
+    if close_clicks:
+        return dash.no_update, False
+
+    return n_clicks, is_open
+
+# @app.callback(
+#     Output('download-button', 'n_clicks'),
+#     Input('download-button', 'n_clicks')
+# )
+
+# def on_button_click(n_clicks):
+#     if n_clicks is None:
+#         raise PreventUpdate
+#     else:
+#         get_sendungsstatus()
+#         return n_clicks
+
+# @app.callback(
+#     Output("modal", "is_open"),
+#     [Input("open", "n_clicks"), Input("close", "n_clicks")],
+#     [State("modal", "is_open")],
+# )
+# def toggle_modal(n1, n2, is_open):
+#     if n1 or n2:
+#         return not is_open
+#     return is_open
 
 application = app.server
 

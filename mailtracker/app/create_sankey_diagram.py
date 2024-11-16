@@ -3,7 +3,7 @@ import pandas as pd
 def gen_sankey(df, selected_columns=None, filter=None,
                     linear=True, title='Sankey Diagram'):
     '''create the sankey diagram based on given params'''
-
+    
     df = df.copy()
 
     if selected_columns == list(df.columns):
@@ -61,11 +61,11 @@ def gen_sankey(df, selected_columns=None, filter=None,
             pad=15,
             thickness=20,
             line=dict(
-                color='#2C66F6',
+                color='#e63922',
                 width=0.1
             ),
             label=unique_source_target,
-            color='#2C66F6'
+            color='#e63922'
         ),
         link=dict(
             source=links_dict['source'],
@@ -83,5 +83,5 @@ def gen_sankey(df, selected_columns=None, filter=None,
     )
     # Create sankey diagram
     fig = dict(data=[data], layout=layout)
-
+    
     return fig
