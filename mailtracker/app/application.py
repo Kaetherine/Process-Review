@@ -4,7 +4,7 @@ import dash
 from dash import dcc, html, Input, Output, State, Dash, dash_table
 import dash_bootstrap_components as dbc
 from dash.exceptions import PreventUpdate
-from create_sankey_diagram import *
+from mailtracker.app.functions import *
 from functools import partial
 import json
 from mailtracker.app.get_dtpost_search import get_mail_status
@@ -247,7 +247,7 @@ def update_graph(data=None, filename=None, selected_columns = None, *filters):
     title = 'Sankey Diagram'
     if not df.empty:
         title = filename
-    fig = gen_sankey(
+    fig = generate_sankey_diagram(
             df,
             selected_columns=selected_columns,
             filter=filters,
